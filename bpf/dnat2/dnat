@@ -1,0 +1,11 @@
+#!/usr/bin/python
+from bcc import BPF
+
+with open('bpf.c', 'r') as f:
+  bpf_text = f.read()
+
+b = BPF(text=bpf_text)
+
+print("starting...\n")
+b.trace_print()
+print("done.")
