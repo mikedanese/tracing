@@ -1,0 +1,35 @@
+#!/usr/bin/python
+from __future__ import print_function
+from bcc import BPF
+import argparse
+from socket import inet_ntop, AF_INET, AF_INET6
+from struct import pack
+import ctypes as ct
+
+class DataDnat(ct.Structure):
+    _fields_ = [
+        ("ts_us", ct.c_ulonglong),
+        ("in", ct.c_bool),
+    ]
+
+# define BPF program
+with open('bpf.c', 'r') as f:
+  bpf_text = f.read()
+
+b = BPF(text=bpf_text)
+## dnat
+#b.attach_kprobe(event="iptable_nat_ipv4_local_fn", fn_name="trace_dnat_entry")
+#b.attach_kretprobe(event="iptable_nat_ipv4_local_fn", fn_name="trace_dnat_return")
+## undnat
+b.attach_kprobe(event="iptable_nat_ipv4_in", fn_name="trace_undnat_entry")
+b.attach_kretprobe(event="iptable_nat_ipv4_in", fn_name="trace_undnat_return")
+
+def print_dnat_event(cpu, data, size):
+  event = ct.cast(data, ct.POINTER(DataDnat)).contents
+  print("%-6d: foo" % (event.ts_us))
+
+print("starting...\n")
+
+b["dnat_events"].open_perf_buffer(print_dnat_event)
+while 1:
+    b.kprobe_poll()
